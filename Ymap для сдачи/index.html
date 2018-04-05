@@ -1,0 +1,143 @@
+<!-- <!DOCTYPE html> -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport">
+   <title>Calculation</title> <!--Заглавия старницы -->
+  <link rel="stylesheet" type="text/css" href="css/main.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  			<!--Для прелоадер -->
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+  			<!--/Для прелоадер -->
+
+   <style type="text/css">
+      body {
+        background: #ffffff;
+	        margin: 3%;
+      }
+    </style>
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>	
+</head>
+<body>
+	<div id="delivery"> 
+		<div class="container-fluid">
+       		<div class="row">
+       			<div class="col-md-8">				
+				<div id="map" style="height:500px;width: 100%;"></div>
+				</div>
+       			<div class="col-md-4">	
+       				<h1>Параметры для расчета:</h1>			
+					<p>Место доставки:</p>
+					<div> 
+						<input class="form-control form-control-lg" type="text" placeholder="Адрес доставки" v-on:change="geo" v-model="address_to_customer" id="suggest1">
+					</div>
+					
+       			</div>
+    		</div> 
+
+    		<div class="row">
+	    		<div class="col-md-6">
+		    		<h1>Общая информация о Маршруте:</h1>
+		    		<p>Расстояние до цели от МКАД: {{ dlinna_km }} км.</p>
+		    		<p>Место доставки: {{address_to_customer}}</p>
+<!-- 		    		 Изменение значения себестоимости <input v-model = 'amount_trub_fct' type="text" /> -->
+	    		</div>
+    		</div>
+		</div> 	
+	</div>
+	
+	
+<!-- 	Расчет расстояние от мкада до точки -->
+<script>
+	var _min_distanse = 10000000*10000000000000000000000000000000000000000000000;
+	var mkad_km = [[55.611144,37.491672],[55.581012,37.572181],[55.576052,37.596728],[55.575274,37.688567],[55.59122,37.729079],[55.640671,37.820918],[55.657075,37.839286],[55.687343,37.831046],[55.707702,37.835509],[55.712572,37.838084],[55.731077,37.841002],[55.743862,37.841861],[55.777158,37.843234],[55.814099,37.839114],[55.882762,37.726504],[55.89212,37.706077],[55.895303,37.673633],[55.910155,37.588489],[55.908323,37.544028],[55.907262,37.537505],[55.887297,37.483603],[55.881604,37.445838],[55.87649,37.427642],[55.870989,37.412021],[55.83275,37.395884],[55.789927,37.371852],[55.76574,37.36859],[55.713638,37.38507],[55.701522,37.398631],[55.662048,37.432792],[55.638558,37.458884]];
+	var myMap;
+	var coordsfromGeo;
+
+function directgeocord(adress){
+    ymaps.geocode(adress, {
+        results: 1
+    }).then(function (res) {
+		//alert("ready");
+            // Выбираем первый результат геокодирования.
+            var firstGeoObject = res.geoObjects.get(0);
+                // Координаты геообъекта.
+				coordsfromGeo = firstGeoObject.geometry.getCoordinates(); //Координаты от геокодирования из поля ввода адреса
+		//console.log(adress);
+		console.log("Координаты1:");
+		console.log(coordsfromGeo );
+		//myMap.sr_km=myMap.sr_km(coordsfromGeo );
+		console.log("Координаты2:");
+		console.log(coordsfromGeo);
+		});
+}
+
+		// Дождёмся загрузки API и готовности DOM.
+	ymaps.ready(init);
+	function init () {
+		var suggestView1= new ymaps.SuggestView('suggest1');
+		//var suggestView1 = new ymaps.SuggestView('suggest1').then(
+		//	 function(item){});
+    	// Создание экземпляра карты и его привязка к контейнеру с
+		// заданным id ("map").
+		var myRoute=null;
+		var _min_distanse = 1000000*1000000;
+		var myPlacemark, l=0, lenght_coord=[],
+		myMap = new ymaps.Map('map', {
+    	    // При инициализации карты обязательно нужно указать
+    	    // её центр и коэффициент масштабирования.
+			center: [55.76, 37.64], // Москва
+			zoom: 9,
+			controls:['zoomControl', 'fullscreenControl', 'typeSelector']
+    	});
+    // Определяем адрес по координатам (обратное геокодирование).
+    function getAddress(coords) {
+        myPlacemark.properties.set('iconCaption', 'идет расчет...');
+        ymaps.geocode(coords).then(function (res) {
+            var firstGeoObject = res.geoObjects.get(0);
+            var address;
+
+            myPlacemark.properties
+                .set({
+                    // Формируем строку с данными об объекте.
+                    iconCaption: [
+                        // Название населенного пункта или вышестоящее административно-территориальное образование.
+                        firstGeoObject.getLocalities().length ? firstGeoObject.getLocalities() : firstGeoObject.getAdministrativeAreas(),
+                       
+                        // Получаем путь до топонима, если метод вернул null, запрашиваем наименование здания.
+                         firstGeoObject.getThoroughfare() || firstGeoObject.getPremise()
+                    ].filter(Boolean).join(', '),
+                    
+                    // В качестве контента балуна задаем строку с адресом объекта.
+                    balloonContent: firstGeoObject.getAddressLine()
+                   
+                });
+                 calc_of_delivery.set_place(firstGeoObject.getAddressLine());
+//           alert(address);
+        });
+    }
+  //Определяем координаты по адресу
+/*
+   function getCordsfromAddress(){
+   		
+   }
+*/
+}
+</script>
+	
+  	<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script> 
+	<script src="js/jquery-3.3.1.js"></script> 
+	  <!-- Подключение Vue.js (Фреймворк), main.js-->
+	<script src="js/vue.js"></script> 
+	<script src="js/main.js"></script> 
+</body>
+</html>
+
+
+
+
+
+
+
